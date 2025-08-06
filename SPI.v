@@ -14,8 +14,11 @@ module SPI (
     reg [2:0] shifting;
     reg [2:0] cs,ns; 
     reg[3:0] counter;
+    reg read_data_ready;
+    reg [9:0] buffer;
+    reg data_captured;
     // First the ns logic
-    always @(cs,MOSI) begin
+    always @(*) begin
         case(cs)
             IDLE: begin
                 if (SS_n) ns=IDLE;
@@ -45,9 +48,7 @@ module SPI (
     //State memory 
     always @(posedge clk ) begin
         if (~rst_n) begin
-            cs<=IDLE;
-            shifting<=0;
-            counter<=0;
+        cs <= IDLE;
         end
         else 
         cs<=ns;
@@ -55,61 +56,82 @@ module SPI (
     //Output logic
     always @(posedge clk) begin
         case(cs)
-            IDLE:begin
-                rx_data<=0;
-                rx_valid<=0;
-                MISO<=0;
-                read_adress_or_read_data <= 0;
-             end
-            CHK_CMD: begin 
-                rx_data<=0;
-                rx_valid<=0;
-                MISO<=0;
-            end
             WRITE:begin
-            if (counter==10) begin
+            if (~data_captured) begin
+        
+            
+            if (counter==4'd9) begin
                 counter<=0;
+                rx_data<=buffer;
                 rx_valid<=1;
+                buffer<=0;
+                data_captured<=1;
             end    
             else begin
             counter<=counter+1;
             rx_valid<=0;
-            rx_data<={rx_data[8:0],MOSI};
+            buffer<={buffer[8:0],MOSI};
             end
+            end
+            else begin rx_data<=0;rx_valid<=0; end
             end
             READ_ADD:begin
-            if (counter==10) begin
+            if (~data_captured) begin
+        
+            
+            if (counter==4'd9) begin
                 counter<=0;
+                rx_data<=buffer;
                 rx_valid<=1;
+                buffer<=0;
+                data_captured<=1;
                 read_adress_or_read_data<=1;
             end    
             else begin
             counter<=counter+1;
             rx_valid<=0;
-            rx_data<={rx_data[8:0],MOSI};
-            end              
+            buffer<={buffer[8:0],MOSI};
+            end
+            end
+            else begin rx_data<=0;rx_valid<=0; end
             end
             READ_DATA:begin
-            if (counter==10) begin
+            if (~data_captured) begin
+            if (counter==4'd9) begin
                 counter<=0;
+                rx_data<=buffer;
                 rx_valid<=1;
+                buffer<=0;
+                data_captured<=1;
             end    
             else begin
             counter<=counter+1;
             rx_valid<=0;
-            rx_data<={rx_data[8:0],MOSI};
+            buffer<={buffer[8:0],MOSI};
             end
-            if (tx_valid) begin
-                if (shifting==8) begin
+            end
+            else begin rx_data<=0;rx_valid<=0; end
+            if (tx_valid&&read_data_ready) begin
+                if (shifting==3'd8) begin
                     MISO<=0;
                     shifting<=0;
+                    read_data_ready<=0;
                 end
                 else begin
                 MISO<=tx_data[7-shifting];
                 shifting<=shifting+1;
-    
             end
             end
+            end
+            default:begin                
+                rx_data<=0;                
+                rx_valid<=0;
+                MISO<=0;
+                read_adress_or_read_data <= 0;
+                counter<=0;
+                shifting<=0;
+                buffer<=0;
+                data_captured<=0;
             end  
         endcase
     end
