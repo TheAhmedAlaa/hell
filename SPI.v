@@ -11,7 +11,7 @@ module SPI (
     parameter READ_ADD=3;
     parameter READ_DATA=4;
     reg read_adress_or_read_data;
-    reg [2:0] shifting;
+    reg [3:0] shifting;
     reg [2:0] cs,ns; 
     reg[3:0] counter;
     reg read_data_ready;
