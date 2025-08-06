@@ -1,0 +1,120 @@
+module TB ();
+    parameter MEM_DEPTH = 256;
+    parameter ADDR_SIZE = 8;
+    reg clk, rst_n, SS_n, MOSI, MISO_expected;
+    wire MISO;
+    reg [ADDR_SIZE - 1 : 0] address;
+    reg [ADDR_SIZE - 1 : 0] data;
+    wrapper dut (clk, rst_n, SS_n,MISO,MOSI);
+    initial begin
+        clk = 0;
+        forever begin
+            #1 clk = ~clk;
+        end
+    end
+    integer i;
+    initial begin
+        rst_n = 0;
+        SS_n = 1;
+        MISO_expected = 0;
+        data = 8'b10101100;
+        address = 8'b01010000;
+        @(negedge clk);
+        if (MISO != MISO_expected) $display("rst_n is not working");
+        else $display ("Correct rst_n");
+        // start the process of saving an writing adress
+        rst_n = 1;
+        SS_n = 0; 
+        @(negedge clk);
+        MOSI = 0;
+        @(negedge clk);
+        MOSI = 0;
+        @(negedge clk);
+        MOSI = 0;   // we want the write process so first input is zero then 2 zeros 
+        @(negedge clk);
+        for (i = ADDR_SIZE - 1; i >= 0; i = i - 1) begin
+            MOSI = address[i];
+            @(negedge clk);
+        end //inserting the MOSI address behind 00 AKA 00(DATA)
+        SS_n = 1; //Going to next state as if cs is write and SS_n is 1 it will be idle 
+        @(negedge clk);
+        SS_n = 0; //returning the SS_n to zero as
+        @(negedge clk);
+        MOSI = 0;
+        @(negedge clk);
+        MOSI = 1;
+        @(negedge clk);
+        for (i = ADDR_SIZE - 1; i >= 0; i = i - 1) begin
+            MOSI = data[i];
+        @(negedge clk);
+        end
+        // stop communication
+        SS_n = 1;
+        @(negedge clk);
+
+        // start the process of of saving the reading address
+        SS_n = 0;
+
+        MOSI = 1;
+
+        @(negedge clk);
+
+        MOSI = 1;
+
+        @(negedge clk);
+
+        MOSI = 0;
+
+        @(negedge clk);
+
+        for (i = ADDR_SIZE - 1; i >= 0; i = i - 1) begin
+            MOSI = address[i];
+
+            @(negedge clk);
+        end
+        
+        // stop communication
+        SS_n = 1;
+
+        @(negedge clk);
+
+        // start the process of of reading the data
+        SS_n = 0;
+
+        MOSI = 1;
+
+        @(negedge clk);
+
+        MOSI = 1;
+
+        @(negedge clk);
+
+        MOSI = 1;
+
+        @(negedge clk);
+
+        repeat (8) begin
+            MOSI = 0;
+
+            @(negedge clk);
+        end
+
+        @(negedge clk);
+        @(negedge clk);
+
+        for (i = ADDR_SIZE - 1; i >= 0; i = i - 1) begin
+            MISO_expected = data[i];
+
+            @(negedge clk);
+
+            if (MISO != MISO_expected) begin
+                $display("Error in design, dut: %b, exp: %b", MISO, MISO_expected);
+                $stop;
+            end
+            else $display("Correct");
+        end
+
+        $stop;
+    end
+
+endmodule
